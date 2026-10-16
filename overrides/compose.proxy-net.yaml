@@ -1,0 +1,16 @@
+# Attaches the frontend (nginx) container to the shared external Caddy
+# network, same pattern as souqfeed-app on this VPS. Every other service
+# (backend, workers, db, redis) stays only on the project's private
+# "default" network - never on proxy-net.
+services:
+  frontend:
+    container_name: zeronix-frappe-frontend
+    networks:
+      proxy-net:
+        aliases:
+          - zeronix-frappe-frontend
+      default: {}
+
+networks:
+  proxy-net:
+    external: true

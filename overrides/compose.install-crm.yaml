@@ -1,0 +1,33 @@
+# One-off job to install the already-built-in `crm` app onto an existing
+# site. Separate from compose.create-site.yaml so ERPNext and CRM
+# installation are two explicit, independently re-runnable steps, matching
+# `bench --site <site> install-app crm` run from the backend image.
+# Behind the "tools" profile so it never runs on a normal `up -d`.
+#
+# Run once, after create-site has completed:
+#   sudo docker compose --env-file .env \
+#     -f compose.yaml -f overrides/compose.mariadb.yaml -f overrides/compose.redis.yaml \
+#     -f overrides/compose.proxy-net.yaml -f overrides/compose.install-crm.yaml \
+#     --profile tools run --rm install-crm
+services:
+  install-crm:
+    image: ${CUSTOM_IMAGE:-frappe/erpnext}:${CUSTOM_TAG:-$ERPNEXT_VERSION}
+    pull_policy: ${PULL_POLICY:-always}
+    profiles: ["tools"]
+    volumes:
+      - sites:/home/frappe/frappe-bench/sites
+    entrypoint:
+      - bash
+      - -c
+    environment:
+      SITE_NAME: ${SITE_NAME:?Set SITE_NAME in .env, e.g. zeronixos.online}
+    command:
+      - >
+        if [ ! -d "sites/$$SITE_NAME" ]; then
+          echo "Site $$SITE_NAME does not exist yet - run create-site first";
+          exit 1;
+        fi;
+        bench --site $$SITE_NAME install-app crm;
+
+volumes:
+  sites:

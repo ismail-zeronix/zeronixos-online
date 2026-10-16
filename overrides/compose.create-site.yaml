@@ -1,0 +1,43 @@
+# One-off site creation job. Never runs on a normal `docker compose up -d`
+# because of the "tools" profile - matches the runbook's pattern of keeping
+# migrations/init jobs out of the default start path.
+#
+# Run once, after db/redis/configurator are healthy:
+#   sudo docker compose --env-file .env \
+#     -f compose.yaml -f overrides/compose.mariadb.yaml -f overrides/compose.redis.yaml \
+#     -f overrides/compose.proxy-net.yaml -f overrides/compose.create-site.yaml \
+#     --profile tools run --rm create-site
+#
+# Creates the site and installs ERPNext only. Install CRM afterwards with
+# overrides/compose.install-crm.yaml.
+services:
+  create-site:
+    image: ${CUSTOM_IMAGE:-frappe/erpnext}:${CUSTOM_TAG:-$ERPNEXT_VERSION}
+    pull_policy: ${PULL_POLICY:-always}
+    profiles: ["tools"]
+    volumes:
+      - sites:/home/frappe/frappe-bench/sites
+    entrypoint:
+      - bash
+      - -c
+    environment:
+      SITE_NAME: ${SITE_NAME:?Set SITE_NAME in .env, e.g. zeronixos.online}
+      DB_ROOT_USER: root
+      DB_ROOT_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in .env}
+    command:
+      - >
+        wait-for-it -t 120 db:3306;
+        wait-for-it -t 120 redis-cache:6379;
+        wait-for-it -t 120 redis-queue:6379;
+        if [ -d "sites/$$SITE_NAME" ]; then
+          echo "Site $$SITE_NAME already exists, skipping creation";
+        else
+          bench new-site --mariadb-user-host-login-scope='%' --admin-password=$$ADMIN_PASSWORD --db-root-username=$$DB_ROOT_USER --db-root-password=$$DB_ROOT_PASSWORD --install-app erpnext --set-default $$SITE_NAME;
+        fi
+    depends_on:
+      configurator:
+        condition: service_completed_successfully
+
+volumes:
+  sites:

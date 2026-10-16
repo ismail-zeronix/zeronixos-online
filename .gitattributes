@@ -1,0 +1,5 @@
+# Force LF line endings for shell scripts regardless of local core.autocrlf
+# settings. A CRLF-corrupted shebang (`#!/bin/bash\r`) breaks these scripts
+# at container runtime with "no such file or directory" - discovered while
+# validating the zeronix-frappe:16 build on a Windows checkout.
+*.sh text eol=lf

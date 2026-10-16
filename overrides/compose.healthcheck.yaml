@@ -1,0 +1,17 @@
+# Adds a container healthcheck to the frontend (nginx) service using
+# Frappe's own built-in health endpoint (frappe.ping) - no custom
+# /api/health route exists or is needed in Frappe.
+services:
+  frontend:
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "curl",
+          "-f",
+          "http://127.0.0.1:${NGINX_LISTEN_PORT:-8080}/api/method/frappe.ping",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
